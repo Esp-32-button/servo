@@ -6,13 +6,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Assuming you're using ESP32Servo library on the ESP32 to control the servo
-const Servo = require('ESP32Servo');
-const myServo = new Servo();
-const servoPin = 5; // Make sure this pin is correct for your setup
-myServo.attach(servoPin);
-
-// POST request to move the servo
+// POST request to handle servo movement
 app.post('/servo', (req, res) => {
   const { angle } = req.body; // Get the angle from the request body
   console.log(`Received angle: ${angle}`);
@@ -21,9 +15,10 @@ app.post('/servo', (req, res) => {
     return res.status(400).json({ message: 'Invalid angle, must be between 0 and 180' });
   }
 
-  // Move the servo to the angle received
-  myServo.write(angle);
-  res.status(200).json({ message: 'Servo moved successfully', angle });
+  // Forward the angle to ESP32 (you need to implement this step in the ESP32 code)
+  // The backend doesn't control the servo, it only forwards the data to the ESP32
+
+  res.status(200).json({ message: 'Servo angle received', angle });
 });
 
 const port = 3000;
