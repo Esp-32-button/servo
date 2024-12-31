@@ -16,19 +16,8 @@ client.connect();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Create the table for storing angles (you can run this once)
-client.query(`
-  CREATE TABLE IF NOT EXISTS servo_angle (
-    id SERIAL PRIMARY KEY,
-    angle INT NOT NULL DEFAULT 90
-  );
-`, (err, res) => {
-  if (err) {
-    console.error('Error creating table:', err);
-  } else {
-    console.log('Table created successfully');
-  }
-});
+// Create the table for storing angles (run this once to create the table)
+
 
 // GET endpoint to retrieve the current servo angle from Neon DB
 app.get('/servo', async (req, res) => {
@@ -51,9 +40,17 @@ app.post('/servo', async (req, res) => {
   }
 
   try {
-    // Insert new angle into Neon database
-    await client.query('INSERT INTO servo_angle (angle) VALUES ($1)', [angle]);
-    res.json({ angle: angle }); // Return the new angle
+    // First, check the current angle in the database
+    const result = await client.query('SELECT angle FROM servo_angle ORDER BY id DESC LIMIT 1');
+    const currentAngle = result.rows[0] ? result.rows[0].angle : 90;
+
+    // If the angle is different, update the angle in the database
+    if (currentAngle !== angle) {
+      await client.query('INSERT INTO servo_angle (angle) VALUES ($1)', [angle]);
+      res.json({ angle: angle }); // Return the new angle
+    } else {
+      res.json({ angle: currentAngle }); // Return the current angle if no update is needed
+    }
   } catch (error) {
     console.error('Error updating angle:', error);
     res.status(500).send('Error updating angle');
