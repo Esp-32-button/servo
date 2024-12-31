@@ -60,7 +60,7 @@ app.post('/servo', authenticateToken, async (req, res) => {
 
   try {
     // Here, you'd send the position to the ESP32
-    const espUrl = `https://servo-95f1.onrender.com/servo`;
+    const espUrl = `https://192.168.43.56/servo`;
     const response = await fetch(espUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
