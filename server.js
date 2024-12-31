@@ -1,36 +1,30 @@
-const express = require('express');
+const express = require("express");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+
 const app = express();
-const cors = require('cors');
-const bodyParser = require('body-parser');
+const port = 3000;
 
-let currentAngle = 90;  // Default angle is 90
-
-app.use(bodyParser.json());
+// Enable CORS and use JSON body parser
 app.use(cors());
+app.use(bodyParser.json());
 
-// Endpoint to receive angle updates
-app.post('/servo', (req, res) => {
-  const { angle } = req.body;
+// Store the last known angle (initial value is 90)
+let lastAngle = 90;
 
-  // Log the incoming angle and the current angle stored in the backend
-  console.log(`Received angle: ${angle}`);
-  console.log(`Current angle before update: ${currentAngle}`);
+app.post("/servo", (req, res) => {
+  let angle = req.body.angle;
+  console.log("Received angle:", angle); // Log the received angle
 
   if (angle >= 0 && angle <= 180) {
-    currentAngle = angle;  // Update the angle in the backend
-    console.log(`Updated angle to: ${currentAngle}`);
-    res.status(200).json({ angle: currentAngle });  // Send the updated angle back to the ESP32
+    lastAngle = angle; // Update the stored angle
+    console.log("Updated angle:", lastAngle);
+    res.json({ angle: lastAngle }); // Send the updated angle back to the ESP32
   } else {
-    res.status(400).json({ error: 'Invalid angle' });
+    res.status(400).json({ error: "Invalid angle" }); // Error if angle is invalid
   }
 });
 
-// Endpoint to get the current angle (useful if the ESP32 needs to query the angle)
-app.get('/servo', (req, res) => {
-  res.status(200).json({ angle: currentAngle });
-});
-
-const port = process.env.PORT || 5000;
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Backend server running on http://localhost:${port}`);
 });
