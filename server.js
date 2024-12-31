@@ -1,27 +1,31 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
 const app = express();
+const cors = require('cors');
+const bodyParser = require('body-parser');
 
+// Enable CORS for all routes
 app.use(cors());
+
+// Middleware to parse JSON data
 app.use(bodyParser.json());
 
-// POST request to handle servo movement
-app.post('/servo', (req, res) => {
-  const { angle } = req.body; // Get the angle from the request body
-  console.log(`Received angle: ${angle}`);
+// Store the current angle (initially set to 90)
+let currentAngle = 90;
 
-  if (angle < 0 || angle > 180) {
-    return res.status(400).json({ message: 'Invalid angle, must be between 0 and 180' });
+app.post('/servo', (req, res) => {
+  const { angle } = req.body;
+
+  if (angle !== undefined) {
+    currentAngle = angle;  // Update the angle based on the request from ESP32
+    console.log(`Received angle: ${angle}`);
   }
 
-  // Forward the angle to ESP32 (you need to implement this step in the ESP32 code)
-  // The backend doesn't control the servo, it only forwards the data to the ESP32
-
-  res.status(200).json({ message: 'Servo angle received', angle });
+  // Respond with the current angle (latest)
+  res.json({ angle: currentAngle });
 });
 
-const port = 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Set the server to listen on port 3000 (or any other available port)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
