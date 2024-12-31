@@ -44,7 +44,6 @@ app.post('/servo', (req, res) => {
   if (angle < 0 || angle > 180) {
     return res.status(400).json({ error: 'Angle must be between 0 and 180' });
   }
-
   const query = 'UPDATE servo_table SET angle = $1 WHERE id = 1'; // Update the angle value in the table
   client.query(query, [angle], (err, result) => {
     if (err) {
