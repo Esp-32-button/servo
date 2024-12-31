@@ -1,27 +1,62 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const { Client } = require('pg');
 
 const app = express();
 const port = 3000;
 
-// Enable CORS and use JSON body parser
+// Setup PostgreSQL client for Neon
+const client = new Client({
+  connectionString: 'postgresql://neondb_owner:xQGXYaSt48Tr@ep-shy-bonus-a5nesqcq.us-east-2.aws.neon.tech/neondb?sslmode=require',  // Replace with your Neon DB connection string
+});
+client.connect();
+
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// Store the last known angle (initial value is 90)
-let lastAngle = 90;
-
-app.post("/servo", (req, res) => {
-  let angle = req.body.angle;
-  console.log("Received angle:", angle); // Log the received angle
-
-  if (angle >= 0 && angle <= 180) {
-    lastAngle = angle; // Update the stored angle
-    console.log("Updated angle:", lastAngle);
-    res.json({ angle: lastAngle }); // Send the updated angle back to the ESP32
+// Create the table for storing angles (you can run this once)
+client.query(`
+  CREATE TABLE IF NOT EXISTS servo_angle (
+    id SERIAL PRIMARY KEY,
+    angle INT NOT NULL DEFAULT 90
+  );
+`, (err, res) => {
+  if (err) {
+    console.error('Error creating table:', err);
   } else {
-    res.status(400).json({ error: "Invalid angle" }); // Error if angle is invalid
+    console.log('Table created successfully');
+  }
+});
+
+// GET endpoint to retrieve the current servo angle from Neon DB
+app.get('/servo', async (req, res) => {
+  try {
+    const result = await client.query('SELECT angle FROM servo_angle ORDER BY id DESC LIMIT 1');
+    const currentAngle = result.rows[0] ? result.rows[0].angle : 90; // Default to 90 if no angle is found
+    res.json({ angle: currentAngle });
+  } catch (error) {
+    console.error('Error retrieving angle:', error);
+    res.status(500).send('Error retrieving angle');
+  }
+});
+
+// POST endpoint to update the servo angle in Neon DB
+app.post('/servo', async (req, res) => {
+  const angle = req.body.angle;
+
+  if (angle < 0 || angle > 180) {
+    return res.status(400).json({ error: 'Invalid angle' });
+  }
+
+  try {
+    // Insert new angle into Neon database
+    await client.query('INSERT INTO servo_angle (angle) VALUES ($1)', [angle]);
+    res.json({ angle: angle }); // Return the new angle
+  } catch (error) {
+    console.error('Error updating angle:', error);
+    res.status(500).send('Error updating angle');
   }
 });
 
