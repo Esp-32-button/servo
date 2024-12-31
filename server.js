@@ -51,27 +51,32 @@ app.post('/login', async (req, res) => {
 });
 
 // Servo Position Endpoints
-app.get('/servo', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT position FROM servo_state LIMIT 1');
-        res.status(200).send(result.rows[0]);
-    } catch (err) {
-        res.status(400).send({ error: 'Failed to fetch servo position' });
+app.post('/servo', authenticateToken, async (req, res) => {
+  const { position } = req.body;
+
+  if (!position || !['left', 'center', 'right'].includes(position)) {
+    return res.status(400).json({ error: 'Invalid position' });
+  }
+
+  try {
+    // Here, you'd send the position to the ESP32
+    const espUrl = `https://servo-95f1.onrender.com/servo`;
+    const response = await fetch(espUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position }),
+    });
+
+    if (response.ok) {
+      res.json({ message: `Servo moved to ${position}` });
+    } else {
+      res.status(500).json({ error: 'Failed to send command to ESP32' });
     }
+  } catch (error) {
+    res.status(500).json({ error: 'Error communicating with ESP32' });
+  }
 });
 
-app.post('/servo', async (req, res) => {
-    const { position } = req.body;
-    if (position < 0 || position > 180) {
-        return res.status(400).send({ error: 'Invalid servo position. Must be between 0 and 180.' });
-    }
-    try {
-        await pool.query('UPDATE servo_state SET position = $1', [position]);
-        res.status(200).send({ message: `Servo position set to ${position} degrees` });
-    } catch (err) {
-        res.status(400).send({ error: 'Failed to update servo position' });
-    }
-});
 
 // Wi-Fi Setup Endpoint
 app.post('/wifi', (req, res) => {
