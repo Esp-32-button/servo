@@ -3,7 +3,7 @@ const app = express();
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
-let currentAngle = 90;  // Set the default angle to 90, but it will change after receiving a new value
+let currentAngle = 90;  // Default angle is 90
 
 app.use(bodyParser.json());
 app.use(cors());
@@ -12,9 +12,13 @@ app.use(cors());
 app.post('/servo', (req, res) => {
   const { angle } = req.body;
 
+  // Log the incoming angle and the current angle stored in the backend
+  console.log(`Received angle: ${angle}`);
+  console.log(`Current angle before update: ${currentAngle}`);
+
   if (angle >= 0 && angle <= 180) {
     currentAngle = angle;  // Update the angle in the backend
-    console.log('Updated angle to:', currentAngle);
+    console.log(`Updated angle to: ${currentAngle}`);
     res.status(200).json({ angle: currentAngle });  // Send the updated angle back to the ESP32
   } else {
     res.status(400).json({ error: 'Invalid angle' });
