@@ -1,68 +1,62 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const { Client } = require('pg');
+const { Client } = require('pg'); // Import PostgreSQL client
 
 const app = express();
-const port = 3000;
-
-// Setup PostgreSQL client for Neon
-const client = new Client({
-  connectionString: 'postgresql://neondb_owner:xQGXYaSt48Tr@ep-shy-bonus-a5nesqcq.us-east-2.aws.neon.tech/neondb?sslmode=require',  // Replace with your Neon DB connection string
-});
-client.connect();
-
-// Middleware
-app.use(cors());
 app.use(bodyParser.json());
+app.use(cors());
 
-// Create the table for storing the servo angle (run this once)
-client.query(`
-  CREATE TABLE IF NOT EXISTS servo_angle (
-    id SERIAL PRIMARY KEY,
-    angle INT NOT NULL DEFAULT 90
-  );
-  -- Insert initial row if the table is empty (run once)
-  INSERT INTO servo_angle (angle)
-  SELECT 90 WHERE NOT EXISTS (SELECT 1 FROM servo_angle);
-`, (err, res) => {
+// Define the connection string (replace with your actual connection string)
+const connectionString = 'postgresql://neondb_owner:xQGXYaSt48Tr@ep-shy-bonus-a5nesqcq.us-east-2.aws.neon.tech/neondb?sslmode=require';
+
+// Connect to the Neon PostgreSQL database using the connection string
+const client = new Client({
+  connectionString: connectionString,  // Use the connection string directly
+});
+
+client.connect((err) => {
   if (err) {
-    console.error('Error creating table or inserting initial data:', err);
-  } else {
-    console.log('Table created and initialized successfully');
+    console.error('Error connecting to the database:', err.stack);
+    return;
   }
+  console.log('Connected to the Neon database.');
 });
 
-// GET endpoint to retrieve the current servo angle from Neon DB
-app.get('/servo', async (req, res) => {
-  try {
-    const result = await client.query('SELECT angle FROM servo_angle WHERE id = 1');
-    const currentAngle = result.rows[0] ? result.rows[0].angle : 90; // Default to 90 if no angle is found
-    res.json({ angle: currentAngle });
-  } catch (error) {
-    console.error('Error retrieving angle:', error);
-    res.status(500).send('Error retrieving angle');
-  }
+// Endpoint to get the current servo angle from the database
+app.get('/servo', (req, res) => {
+  const query = 'SELECT angle FROM servo_table WHERE id = 1'; // Assuming a single row for servo data
+  client.query(query, (err, result) => {
+    if (err) {
+      console.error('Error fetching angle from database:', err);
+      return res.status(500).json({ error: 'Failed to fetch angle' });
+    }
+    if (result.rows.length > 0) {
+      return res.json({ angle: result.rows[0].angle });
+    }
+    res.status(404).json({ error: 'Angle not found' });
+  });
 });
 
-// POST endpoint to update the servo angle in Neon DB
-app.post('/servo', async (req, res) => {
-  const angle = req.body.angle;
-
+// Endpoint to update the servo angle in the database
+app.post('/servo', (req, res) => {
+  const { angle } = req.body;
   if (angle < 0 || angle > 180) {
-    return res.status(400).json({ error: 'Invalid angle' });
+    return res.status(400).json({ error: 'Angle must be between 0 and 180' });
   }
 
-  try {
-    // Update the existing row with the new angle
-    await client.query('UPDATE servo_angle SET angle = $1 WHERE id = 1', [angle]);
-    res.json({ angle: angle }); // Return the updated angle
-  } catch (error) {
-    console.error('Error updating angle:', error);
-    res.status(500).send('Error updating angle');
-  }
+  const query = 'UPDATE servo_table SET angle = $1 WHERE id = 1'; // Update the angle value in the table
+  client.query(query, [angle], (err, result) => {
+    if (err) {
+      console.error('Error updating angle in database:', err);
+      return res.status(500).json({ error: 'Failed to update angle' });
+    }
+    res.json({ success: true, angle: angle }); // Return the updated angle in the response
+  });
 });
 
+// Start the server
+const port = 3000;
 app.listen(port, () => {
-  console.log(`Backend server running on http://localhost:${port}`);
+  console.log(`Server running on http://localhost:${port}`);
 });
